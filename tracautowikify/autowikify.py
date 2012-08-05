@@ -38,25 +38,19 @@ def _get_breakable_pattern():
         (0xF900, 0xFAFF),   # CJK Compatibility Ideographs
         (0xFE30, 0xFE4F),   # CJK Compatibility Forms
         (0xFF00, 0xFFEF),   # Halfwidth and Fullwidth Forms
-        (0x20000, 0x2FFFF, u'[\uD840-\uD87F][\uDC00-\uDFFF]'), # Plane 2
-        (0x30000, 0x3FFFF, u'[\uD880-\uD8BF][\uDC00-\uDFFF]'), # Plane 3
+        (0x20000, 0x2FFFF), # Plane 2
+        (0x30000, 0x3FFFF), # Plane 3
     ]
     char_ranges = []
-    surrogate_pairs = []
     for val in _breakable_char_ranges:
         try:
-            high = unichr(val[0])
-            low = unichr(val[1])
-            char_ranges.append(u'%s-%s' % (high, low))
+            low = unichr(val[0])
+            high = unichr(val[1])
+            char_ranges.append(u'%s-%s' % (low, high))
         except ValueError:
             # Narrow build, `re` cannot use characters >= 0x10000
-            surrogate_pairs.append(val[2])
-    char_ranges = u''.join(char_ranges)
-    if surrogate_pairs:
-        pattern = u'(?:[%s]|%s)' % (char_ranges, u'|'.join(surrogate_pairs))
-    else:
-        pattern = u'[%s]' % char_ranges
-    return pattern
+            char_ranges.append(u'\\U%08x-\\U%08x' % (val[0], val[1]))
+    return u'[%s]' % u''.join(char_ranges)
 
 _breakable_pattern = _get_breakable_pattern()
 _breakable_re = re.compile(_breakable_pattern)

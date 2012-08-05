@@ -72,6 +72,20 @@ class AutoWikifyTestCase(unittest.TestCase):
             self.format_to_oneliner(
                 u'かきくけこかきくけこ'))
 
+    def test_format_cjk_name_ucs4(self):
+        self.assertEqual(
+            Markup(
+                u'𠀋'
+                u'<a class="wiki" href="/wiki/%E3%81%82%E3%81%84%E3%81%86Name">あいうName</a>'
+                u'𠀋'
+                u'<a class="wiki" href="/wiki/Name%E3%81%82%E3%81%84%E3%81%86">Nameあいう</a>'
+                u'𠀋'
+                u'<a class="wiki" href="/wiki/%E3%81%8B%E3%81%8D%E3%81%8F%E3%81%91%E3%81%93">かきくけこ</a>'
+                u'𠀋'
+            ),
+            self.format_to_oneliner(
+                u'𠀋あいうName𠀋Nameあいう𠀋かきくけこ𠀋'))
+
 
 def suite():
     suite = unittest.TestSuite()
