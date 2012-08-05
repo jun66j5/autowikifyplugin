@@ -16,7 +16,7 @@ from trac.util.compat import set
 from trac.wiki.api import IWikiChangeListener, IWikiSyntaxProvider, WikiParser, WikiSystem
 
 
-def _init_breakable_re():
+def _get_breakable_pattern():
     # From trac:source:branches/0.12-stable/trac/util/text.py, introduced in
     # trac:r10539
     _breakable_char_ranges = [
@@ -53,13 +53,14 @@ def _init_breakable_re():
             surrogate_pairs.append(val[2])
     char_ranges = u''.join(char_ranges)
     if surrogate_pairs:
-        pattern = u'(?:[%s]|%s)+' % (char_ranges,
-                                     u'|'.join(surrogate_pairs))
+        pattern = u'(?:[%s]|%s)' % (char_ranges, u'|'.join(surrogate_pairs))
     else:
-        pattern = u'[%s]+' % char_ranges
-    return re.compile(pattern)
+        pattern = u'[%s]' % char_ranges
+    return pattern
 
-_breakable_re = _init_breakable_re()
+_breakable_pattern = _get_breakable_pattern()
+_breakable_re = re.compile(_breakable_pattern)
+_alnum_re = re.compile(r'\w', re.UNICODE)
 
 
 class AutoWikify(Component):
@@ -131,17 +132,20 @@ class AutoWikify(Component):
         WikiParser(self.env)._compiled_rules = None
 
     def _get_pages_re(self, pages):
-        alnum_re = re.compile(r'\w', re.UNICODE)
-        def isalnum(c):
-            return alnum_re.match(c) and not _breakable_re.match(c)
+        def is_boundary(c):
+            return _alnum_re.match(c) and not _breakable_re.match(c)
         groups = [list() for i in xrange(4)]
         for page in pages:
-            idx = (not isalnum(page)) * 2 + (not isalnum(page[-1])) * 1
+            idx = (not is_boundary(page)) * 2 + (not is_boundary(page[-1])) * 1
             groups[idx].append(re.escape(page))
 
-        fmts = [r'\b(?:%s)\b', r'\b(?:%s)', r'(?:%s)\b', r'(?:%s)']
-        groups = [fmts[idx] % '|'.join(group)
-                  for idx, group in enumerate(groups) if group]
+        fmts = [r'(?:\b|(?<=%(break)s))(?:%(names)s)(?=\b|%(break)s)',
+                r'(?:\b|(?<=%(break)s))(?:%(names)s)',
+                r'(?:%(names)s)(?=\b|%(break)s)',
+                r'(?:%(names)s)']
+        groups = [fmts[idx] % {'names': '|'.join(names),
+                               'break': _breakable_pattern}
+                  for idx, names in enumerate(groups) if names]
         if groups:
             return '!?(?P<autowiki>%s)' % '|'.join(groups)
         else:
